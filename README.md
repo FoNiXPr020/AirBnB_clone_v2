@@ -145,6 +145,6 @@ Usage: <class_name>.update(<_id>, <dictionary>)
 
 ###### These individuals contributed to the hbnb project in this repository 
 
-Ezra Nobrega <ezra.nobrega@outlook.com>
-Justin Majetich <justinmajetich@gmail.com>
+Ezra Nobrega <ezra.nobrega@outlook.com> <br>
+Justin Majetich <justinmajetich@gmail.com> <br>
 Mohamed Barhoun <rogueman2018@gmail.com>
