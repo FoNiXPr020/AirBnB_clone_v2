@@ -1,76 +1,49 @@
 #!/usr/bin/python3
-"""
-Fabric script that generates a .tgz archive
-from the contents of the web_static folder of
-AirBnB Clone repo
-"""
-from os.path import basename, exists, splitext
-from fabric.api import local, env, run, put, cd, task, sudo
-from datetime import datetime
-from os.path import getsize
+# Fabfile to distribute an archive to a web server.
+import os.path
+from fabric.api import env
+from fabric.api import put
+from fabric.api import run
 
-env.hosts = ["18.207.234.225", "52.91.116.161"]
-env.user = "ubuntu"
+env.hosts = ["104.196.168.90", "35.196.46.172"]
 
 
-def test(cmd):
-    """Tests the command and returns True if successful"""
-    if cmd.succeeded is True:
-        return False
-    return True
-
-
-@task
-def do_pack():
-    """Packs the web_static files into .tgz file"""
-    date = datetime.now().strftime("%Y%m%d%H%M%S")
-    file = "versions/web_static_{}.tgz".format(date)
-    print("Packing web_static to {}".format(file))
-    if test(local("mkdir -p versions")):
-        return None
-    if not test(local("tar -cvzf {} web_static".format(file))):
-        print("web_static packed: {} -> {}Bytes".format(file, getsize(file)))
-        return file
-    return None
-
-
-@task(default=True)
 def do_deploy(archive_path):
-    """Deploys the archive to the web servers
-    usage:
-    fab -f 2-do_deploy_web_static.py do_deploy:
-    archive_path=versions/web_static_20240306225407.tgz
-    -i my_ssh_private_key -u ubuntu
+    """Distributes an archive to a web server.
+
+    Args:
+        archive_path (str): The path of the archive to distribute.
+    Returns:
+        If the file doesn't exist at archive_path or an error occurs - False.
+        Otherwise - True.
     """
-    try:
-        if not exists(archive_path):
-            return False
-        target = "/data/web_static/releases/"
-        if test(put(archive_path, "/tmp/")):
-            return False
-        archive_path = basename(archive_path)
-        file, _ = splitext(archive_path)
-        with cd(target):
-            if test(sudo("if [ -d {} ]; then rm -rf {}; fi"
-                        .format(file, file))):
-                return False
-            if test(sudo("mkdir -p {}".format(file))):
-                return False
-            if test(sudo("tar -xzf /tmp/{} -C {}"
-                        .format(archive_path, file))):
-                return False
-            if test(sudo("mv {}/web_static/* {} && rm -rf {}/web_static"
-                        .format(file, file, file))):
-                return False
-        if test(sudo("rm /tmp/{}".format(archive_path))):
-            return False
-        if test(sudo("rm -rf /data/web_static/current")):
-            return False
-        if test(sudo("ln -s {}{}/ /data/web_static/current"
-                    .format(target, file))):
-            return False
-        print("New version deployed!")
-    except Exception:
+    if os.path.isfile(archive_path) is False:
+        return False
+    file = archive_path.split("/")[-1]
+    name = file.split(".")[0]
+
+    if put(archive_path, "/tmp/{}".format(file)).failed is True:
+        return False
+    if run("rm -rf /data/web_static/releases/{}/".
+           format(name)).failed is True:
+        return False
+    if run("mkdir -p /data/web_static/releases/{}/".
+           format(name)).failed is True:
+        return False
+    if run("tar -xzf /tmp/{} -C /data/web_static/releases/{}/".
+           format(file, name)).failed is True:
+        return False
+    if run("rm /tmp/{}".format(file)).failed is True:
+        return False
+    if run("mv /data/web_static/releases/{}/web_static/* "
+           "/data/web_static/releases/{}/".format(name, name)).failed is True:
+        return False
+    if run("rm -rf /data/web_static/releases/{}/web_static".
+           format(name)).failed is True:
+        return False
+    if run("rm -rf /data/web_static/current").failed is True:
+        return False
+    if run("ln -s /data/web_static/releases/{}/ /data/web_static/current".
+           format(name)).failed is True:
         return False
     return True
-
